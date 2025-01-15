@@ -8,7 +8,7 @@ const port = process.env.PORT || 5000
 app.use(cors())
 app.use(express.json())
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.uu4gd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
@@ -22,6 +22,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         const userCollection = client.db('BworkerDB').collection('users')
+        const tasksCollection = client.db('BworkerDB').collection('tasks')
         
         const verifyToken = (req,res,next)=>{
             if(!req.headers.authorization){
@@ -98,7 +99,7 @@ async function run() {
         })
         app.get('/user/admin/:email',verifyToken,async(req,res)=>{
             const email = req.params.email
-            console.log(email)
+            
             if(email !== req.decoded.email){
                 return res.status(403).send({message: 'Forbidden access'})
             }
@@ -109,7 +110,7 @@ async function run() {
                 admin = user?.role === 'admin'
             }
             res.send({admin})
-            console.log(admin)
+            
         })
         app.get('/user/buyer/:email',verifyToken,async(req,res)=>{
             const email = req.params.email
@@ -123,7 +124,7 @@ async function run() {
                 buyer = user?.role === 'buyer'
             }
             res.send({buyer})
-            console.log(buyer)
+            
         })
         app.get('/user/worker/:email',verifyToken,async(req,res)=>{
             const email = req.params.email
@@ -137,9 +138,75 @@ async function run() {
                 worker = user?.role === 'worker'
             }
             res.send({worker})
-            console.log(worker)
+           
         })
-        
+        app.get('/coin/:email',async (req,res)=>{
+            const email = req.params.email
+            const result = await userCollection.aggregate([{
+                $match:{email:email}
+            },{
+                $group:{
+                   _id:'$email',
+                    totalcoin: {
+                        $sum:'$coin'
+                    }
+                }
+            }]).toArray()
+            const coins = result.length>0?result[0].totalcoin:0;
+            res.send({coins})
+        })
+        app.post('/taskItems',async(req,res)=>{
+            const taskItem = req.body
+            const email= taskItem.email
+             const totalCoin = taskItem.requiredWorks*taskItem.payableAmount
+             const updatedUser = await userCollection.updateOne(
+                { email },
+                { $inc: { coin: -totalCoin } }
+              ); 
+            const result = await tasksCollection.insertOne(taskItem)
+            res.send({result,updatedUser})
+        })
+        app.get('/mytasks/:email',async(req,res)=>{
+            const email = req.params.email
+            const query = {email: email}
+            const result = await tasksCollection.find(query).toArray()
+            res.send(result)
+        })
+        app.get('/updateTask/:id',async(req,res)=>{
+            const id = req.params.id
+            const query = {_id: new ObjectId(id)}
+            const result = await tasksCollection.findOne(query)
+            res.send(result)
+        })
+        app.put('/updateTask/:id',async(req,res)=>{
+            const item= req.body
+            console.log(item)
+            const id = req.params.id
+            const query = {_id: new ObjectId(id)}
+            const updateTask ={
+            $set:{
+                taskTitle: item.taskTitle,
+                taskDetail: item.taskDetail,
+                submissionInfo: item.submissionInfo
+            }
+            }
+            const result = await tasksCollection.updateOne(query,updateTask)
+            res.send(result)
+        })
+        app.put('/deleteTask/:id',async(req,res)=>{
+            const id = req.params.id
+            const task = req.body
+            console.log(task)
+            const email = task.email
+            const incressCoin=task.totalPayableAmount
+            const query = {_id : new ObjectId(id)}
+            const result = await tasksCollection.deleteOne(query)
+            const update= await userCollection.updateOne(
+                {email},
+                {$inc:{coin: +incressCoin}}
+            )
+            res.send({result,update})
+        })
     } finally {
     }
 }
