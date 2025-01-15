@@ -96,6 +96,49 @@ async function run() {
             const result = await userCollection.insertOne(newUser)
             res.send(result)
         })
+        app.get('/user/admin/:email',verifyToken,async(req,res)=>{
+            const email = req.params.email
+            console.log(email)
+            if(email !== req.decoded.email){
+                return res.status(403).send({message: 'Forbidden access'})
+            }
+            const query = {email: email}
+            const user = await userCollection.findOne(query)
+            let admin = false
+            if(user){
+                admin = user?.role === 'admin'
+            }
+            res.send({admin})
+            console.log(admin)
+        })
+        app.get('/user/buyer/:email',verifyToken,async(req,res)=>{
+            const email = req.params.email
+            if(email !== req.decoded.email){
+                return res.status(403).send({message: 'Forbidden access'})
+            }
+            const query = {email: email}
+            const user = await userCollection.findOne(query)
+            let buyer = false
+            if(user){
+                buyer = user?.role === 'buyer'
+            }
+            res.send({buyer})
+            console.log(buyer)
+        })
+        app.get('/user/worker/:email',verifyToken,async(req,res)=>{
+            const email = req.params.email
+            if(email !== req.decoded.email){
+                return res.status(403).send({message: 'Forbidden access'})
+            }
+            const query = {email: email}
+            const user = await userCollection.findOne(query)
+            let worker = false
+            if(user){
+                worker = user?.role === 'worker'
+            }
+            res.send({worker})
+            console.log(worker)
+        })
         
     } finally {
     }
