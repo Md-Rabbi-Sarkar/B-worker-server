@@ -23,6 +23,7 @@ async function run() {
     try {
         const userCollection = client.db('BworkerDB').collection('users')
         const tasksCollection = client.db('BworkerDB').collection('tasks')
+        const submitTasksCollection = client.db('BworkerDB').collection('submitTasks')
         
         const verifyToken = (req,res,next)=>{
             if(!req.headers.authorization){
@@ -37,7 +38,7 @@ async function run() {
                 next()
             })
         }
-        const verifyAdmin = async (req,res)=>{
+        const verifyAdmin = async (req,res,next)=>{
             const email = req.decoded.email
             const query = {email: email}
             const user = await userCollection.findOne(query)
@@ -45,9 +46,9 @@ async function run() {
             if(!isAdmin){
                 return res.status(403).send({message: 'Forbidden access'})
             }
-            next()
+            next();
         }
-        const verifyBuyer = async (req,res)=>{
+        const verifyBuyer = async (req,res,next)=>{
             const email = req.decoded.email
             const query = {email: email}
             const user = await userCollection.findOne(query)
@@ -57,7 +58,7 @@ async function run() {
             }
             next()
         }
-        const veryfyWorker = async(req,res)=>{
+        const veryfyWorker = async(req,res,next)=>{
             const email = req.decoded.email
             const query = {email: email}
             const user = await userCollection.findOne(query)
@@ -206,6 +207,61 @@ async function run() {
                 {$inc:{coin: +incressCoin}}
             )
             res.send({result,update})
+        })
+        app.get('/taskList',async(req,res)=>{
+            const result = await tasksCollection.find({
+                $expr: { $gt: [{ $toInt: "$requiredWorks" }, 0] }
+              }).toArray()
+            res.send(result)
+        })
+        app.get('/tsskDetails/:id',async(req,res)=>{
+            const id = req.params.id
+            const query = {_id: new ObjectId(id)}
+            const result = await tasksCollection.findOne(query)
+            res.send(result)
+        })
+        app.post('/submitTask',async(req,res)=>{
+            const task = req.body
+            const result = await submitTasksCollection.insertOne(task)
+            res.send(result)
+        })
+        app.get('/submitTask/:email',async(req,res)=>{
+            const email = req.params.email
+            const query = {workerEmail : email} 
+            const result = await submitTasksCollection.find(query).toArray()
+            res.send(result)
+        })
+        app.get('/admin/allUsers',verifyToken,verifyAdmin,async(req,res)=>{
+            const result = await userCollection.find().toArray()
+            res.send(result)
+        })
+        app.patch('/makeRole',verifyToken,verifyAdmin,async(req,res)=>{
+            const role = req.body
+            const email = role.email
+            const query = {email:email} 
+            const updateRole = {
+                $set:{
+                    role:role.value
+                }
+            }
+            const result = await userCollection.updateOne(query,updateRole)
+            res.send(result)
+        })
+        app.delete('/userDelete',verifyToken,verifyAdmin,async(req,res)=>{
+            const email = req.query.email
+            const query ={email: email}
+            const result = await userCollection.deleteOne(query)
+            res.send(result)
+        })
+        app.get('/allTasks',verifyToken,verifyAdmin,async(req,res)=>{
+            const result = await tasksCollection.find().toArray()
+            res.send(result)
+        })
+        app.delete('/taskDelete',async(req,res)=>{
+            const id = req.query.id
+            const query = {_id: new ObjectId(id)}
+            const result = await tasksCollection.deleteOne(query)
+            res.send(result)
         })
     } finally {
     }
