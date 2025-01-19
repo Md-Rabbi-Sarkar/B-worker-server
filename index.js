@@ -27,6 +27,7 @@ async function run() {
         const submitTasksCollection = client.db('BworkerDB').collection('submitTasks')
         const withdrawReqCollection = client.db('BworkerDB').collection('withdrawReq')
         const paymentCollection = client.db('BworkerDB').collection('payments')
+        const notificationCollection = client.db('BworkerDB').collection('notifications')
         
 
         const verifyToken = (req, res, next) => {
@@ -443,6 +444,61 @@ async function run() {
             const paymentResult = await paymentCollection.insertOne(payment)
             
             res.send({paymentResult})
+        })
+        app.get('/withdraw',async(req,res)=>{
+            const query = {status:'pending'}
+            const result = await withdrawReqCollection.find(query).toArray()
+            res.send(result)
+        })
+        app.put('/withdrawApproved/:id',async(req,res)=>{
+            const id = req.params.id
+            const email = req.body.email
+            console.log(email)
+            const workercoin = req.body.workerCoin
+            const amount = parseInt(workercoin)
+            const query ={_id: new ObjectId (id)}
+            const decressWorkerCoin = await userCollection.updateOne(
+                { email },
+                { $inc: { coin: - amount } }
+            );
+            const updateStatus = {
+                $set: {
+                    status: 'approved'
+                }
+            }
+            const result = await withdrawReqCollection.updateOne(query,updateStatus)
+            res.send({result,decressWorkerCoin})
+
+        })
+        app.post('/notifications',async(req,res)=>{
+            const info = req.body
+            const result = await notificationCollection.insertOne(info)
+            res.send(result)
+        })
+        app.get('/notifications',async(req,res)=>{
+            const email = req.query.email
+            const query ={workerEmail:email}
+            const result = await notificationCollection.find(query).sort({ Time: -1 }).toArray()
+            res.send(result)
+        })
+        app.get('/notificationsIcon',async(req,res)=>{
+            const email = req.query.email
+            const query ={workerEmail:email , status: 'unseen'}
+            const result = await notificationCollection.estimatedDocumentCount(query)
+            res.send({result})
+        })
+        app.put('/notiStatus',async(req,res)=>{
+            const email = req.query.email
+            const info = req.body
+            console.log(info)
+            const query = {workerEmail: email ,status:"unseen"}
+            const updatestatus = {
+                $set:{
+                    status:'seen'
+                }
+            }
+            const result = await notificationCollection.updateMany(query,updatestatus)
+            res.send({result})
         })
     } finally {
     }
