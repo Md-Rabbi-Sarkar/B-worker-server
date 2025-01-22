@@ -29,7 +29,7 @@ async function run() {
         const paymentCollection = client.db('BworkerDB').collection('payments')
         const notificationCollection = client.db('BworkerDB').collection('notifications')
         
-
+        
         const verifyToken = (req, res, next) => {
             if (!req.headers.authorization) {
                 return res.status(401).send({ message: ' Unauthorized access' })
@@ -145,6 +145,12 @@ async function run() {
             }
             res.send({ worker })
 
+        })
+        app.get('/userInfo',async(req,res)=>{
+            const email = req.query.email
+            const query = {email:email}
+            const result = await userCollection.findOne(query)
+            res.send(result)
         })
         app.get('/coin/:email', async (req, res) => {
             const email = req.params.email
@@ -429,7 +435,7 @@ async function run() {
         app.post('/create-payment-intent',async(req,res)=>{
             const {price} = req.body
             console.log(price)
-            const amount = parseInt(price /20)
+            const amount = price /20
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: amount,
                 currency:'usd',
