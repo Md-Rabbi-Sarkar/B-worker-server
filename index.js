@@ -236,10 +236,16 @@ async function run() {
             const result = await submitTasksCollection.insertOne(task)
             res.send(result)
         })
-        app.get('/submitTask/:email', async (req, res) => {
-            const email = req.params.email
+        app.get('/submitTask', async (req, res) => {
+            const email = req.query.email
+            const page = parseInt(req.query.page)
+            const size = parseInt(req.query.size)
+            // console.log(page)
             const query = { workerEmail: email }
-            const result = await submitTasksCollection.find(query).toArray()
+            const result = await submitTasksCollection.find(query)
+            .skip(page*size)
+            .limit(size)
+            .toArray()
             res.send(result)
         })
         app.get('/admin/allUsers', verifyToken, verifyAdmin, async (req, res) => {
