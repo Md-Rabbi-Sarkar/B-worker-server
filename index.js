@@ -434,8 +434,7 @@ async function run() {
         })
         app.post('/create-payment-intent',async(req,res)=>{
             const {price} = req.body
-            console.log(price)
-            const amount = price /20
+            const amount = (price /20) *100
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: amount,
                 currency:'usd',
@@ -447,9 +446,19 @@ async function run() {
         })
         app.post('/payments',async(req,res)=>{
             const payment = req.body
+            const incressCoin = payment.price 
+            const email =payment.email
             const paymentResult = await paymentCollection.insertOne(payment)
-            
-            res.send({paymentResult})
+            const update = await userCollection.updateOne(
+                { email },
+                { $inc: { coin: +incressCoin } })
+            res.send({paymentResult,update})
+        })
+        app.get('/paymentHistory',async(req,res)=>{
+            const email = req.query.email
+            const query = {email: email}
+            const result = await paymentCollection.find(query).toArray()
+            res.send(result)
         })
         app.get('/withdraw',async(req,res)=>{
             const query = {status:'pending'}
