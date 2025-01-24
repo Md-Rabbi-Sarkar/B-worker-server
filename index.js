@@ -37,7 +37,7 @@ async function run() {
             const token = req.headers.authorization.split(' ')[1]
             jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
                 if (err) {
-                    return res.status(401).send({ message: ' Unauthorized access' })
+                    return res.status(400).send({ message: ' Unauthorized access' })
                 }
                 req.decoded = decoded;
                 next()
@@ -80,6 +80,7 @@ async function run() {
         })
         app.post('/users', async (req, res) => {
             const user = req.body
+            console.log(user)
             const query = { email: user.email }
             const existingUser = await userCollection.findOne(query)
             const worker = user?.role === 'worker'
@@ -98,6 +99,7 @@ async function run() {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                photoURL:user.photoUrl,
                 coin,
             }
             const result = await userCollection.insertOne(newUser)
@@ -295,10 +297,19 @@ async function run() {
                     totalBuyers: { $sum: { $cond: [{ $eq: ['$role', 'buyer'] }, 1, 0] } }
                 }
             }]).toArray()
+            const result2 = await paymentCollection.aggregate([{
+                $group:{
+                    _id:null,
+                    totalpaymentCoin :{
+                        $sum:'$price'
+                    }
+                }
+            }]).toArray()
             const coin = result.length > 0 ? result[0].totalCount : 0;
             const worker = result.length > 0 ? result[0].totalWorkers : 0;
             const buyer = result.length > 0 ? result[0].totalBuyers : 0;
-            res.send({ coin, worker, buyer })
+            const payment = result2.length >0 ? result2[0].totalpaymentCoin:0
+            res.send({ coin, worker, buyer ,payment})
         })
         app.get('/buyerTotalTask', async (req, res) => {
             const email = req.query.email
