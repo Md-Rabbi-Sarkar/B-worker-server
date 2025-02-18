@@ -169,7 +169,7 @@ async function run() {
             const coins = result.length > 0 ? result[0].totalcoin : 0;
             res.send({ coins })
         })
-        app.post('/taskItems', async (req, res) => {
+        app.post('/taskItems',verifyToken,verifyBuyer, async (req, res) => {
             const taskItem = req.body
             const email = taskItem.email
             const totalCoin = taskItem.requiredWorks * taskItem.payableAmount
@@ -180,7 +180,7 @@ async function run() {
             const result = await tasksCollection.insertOne(taskItem)
             res.send({ result, updatedUser })
         })
-        app.get('/mytasks/:email', async (req, res) => {
+        app.get('/mytasks/:email',verifyToken,verifyBuyer, async (req, res) => {
             const email = req.params.email
             const query = { email: email }
             const result = await tasksCollection.find(query).toArray()
@@ -227,6 +227,18 @@ async function run() {
             }).toArray()
             res.send(result)
         })
+        app.get('/expensivTask',async (req,res)=>{
+            const result = await tasksCollection.aggregate([
+                {
+                    $addFields: {
+                        payableAmountInt: { $toInt: "$payableAmount" } // Convert string to integer
+                    }
+                },
+                { $sort: { payableAmountInt: -1 } }, // Sort by the new integer field
+                { $limit: 6 }
+            ]).toArray()
+            res.send(result);
+        })
         app.get('/tsskDetails/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
@@ -238,7 +250,7 @@ async function run() {
             const result = await submitTasksCollection.insertOne(task)
             res.send(result)
         })
-        app.get('/submitTask', async (req, res) => {
+        app.get('/submitTask',verifyToken,veryfyWorker, async (req, res) => {
             const email = req.query.email
             const page = parseInt(req.query.page)
             const size = parseInt(req.query.size)
@@ -283,10 +295,16 @@ async function run() {
             res.send(result)
         })
         app.get('/bestWorker', async (req, res) => {
-            const result = await userCollection.find().sort({ coin: -1 }).limit(6).toArray()
+            const query = {role: 'worker'}
+            const result = await userCollection.find(query).sort({ coin: -1 }).limit(6).toArray()
             res.send(result)
         })
-        app.get('/admin/totalInfoCount', async (req, res) => {
+        app.get('/bestBuyer',async (req,res)=>{
+            const query ={role: 'buyer'}
+            const result = await userCollection.find(query).sort({coin: -1}).limit(6).toArray()
+            res.send(result)
+        })
+        app.get('/admin/totalInfoCount',verifyToken,verifyAdmin, async (req, res) => {
             const result = await userCollection.aggregate([{
                 $group: {
                     _id: null,
@@ -311,7 +329,7 @@ async function run() {
             const payment = result2.length >0 ? result2[0].totalpaymentCoin:0
             res.send({ coin, worker, buyer ,payment})
         })
-        app.get('/buyerTotalTask', async (req, res) => {
+        app.get('/buyerTotalTask',verifyToken,verifyBuyer, async (req, res) => {
             const email = req.query.email
             const query = {
                 buyerEmail: email,
@@ -386,7 +404,7 @@ async function run() {
             const result = await submitTasksCollection.updateOne(query, updateStatus)
             res.send({ result, increaseRequiredWorker })
         })
-        app.get('/workerApproveTask', async (req, res) => {
+        app.get('/workerApproveTask',verifyToken,veryfyWorker, async (req, res) => {
             const email = req.query.email
             const query = {
                 workerEmail: email,
@@ -395,7 +413,7 @@ async function run() {
             const result = await submitTasksCollection.find(query).toArray()
             res.send(result)
         })
-        app.get('/workerStates', async (req, res) => {
+        app.get('/workerStates',verifyToken,veryfyWorker, async (req, res) => {
 
             const email = req.query.email
             console.log(email)
@@ -471,13 +489,13 @@ async function run() {
                 { $inc: { coin: +incressCoin } })
             res.send({paymentResult,update})
         })
-        app.get('/paymentHistory',async(req,res)=>{
+        app.get('/paymentHistory',verifyToken,verifyBuyer,async(req,res)=>{
             const email = req.query.email
             const query = {email: email}
             const result = await paymentCollection.find(query).toArray()
             res.send(result)
         })
-        app.get('/withdraw',async(req,res)=>{
+        app.get('/withdraw',verifyToken,verifyAdmin,async(req,res)=>{
             const query = {status:'pending'}
             const result = await withdrawReqCollection.find(query).toArray()
             res.send(result)
@@ -509,15 +527,15 @@ async function run() {
         })
         app.get('/notifications',async(req,res)=>{
             const email = req.query.email
-            const query ={workerEmail:email}
+            const query ={ToEmail:email}
             const result = await notificationCollection.find(query).sort({ Time: -1 }).toArray()
             res.send(result)
         })
         app.get('/notificationsIcon',async(req,res)=>{
             const email = req.query.email
-            const query ={workerEmail:email , status: 'unseen'}
-            const result = await notificationCollection.estimatedDocumentCount(query)
-            res.send({result})
+            const query ={ToEmail:email}
+            const result = await notificationCollection.find(query).toArray()
+            res.send(result)
         })
         app.put('/notiStatus',async(req,res)=>{
             const email = req.query.email
