@@ -302,7 +302,7 @@ async function run() {
         app.get('/bestBuyer',async (req,res)=>{
             const query ={role: 'buyer'}
             const result = await userCollection.find(query).sort({coin: -1}).limit(6).toArray()
-            res.send(result)
+            res.send(result);
         })
         app.get('/admin/totalInfoCount',verifyToken,verifyAdmin, async (req, res) => {
             const result = await userCollection.aggregate([{
