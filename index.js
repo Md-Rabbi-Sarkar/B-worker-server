@@ -239,6 +239,12 @@ async function run() {
             ]).toArray()
             res.send(result);
         })
+        app.get('/expensivtaskDetails/:id',async (req,res)=>{
+            const id= req.params.id
+            const query = {_id: new ObjectId(id)}
+            const result = await tasksCollection.findOne(query)
+            res.send(result);
+        })
         app.get('/tsskDetails/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: new ObjectId(id) }
@@ -299,9 +305,21 @@ async function run() {
             const result = await userCollection.find(query).sort({ coin: -1 }).limit(6).toArray()
             res.send(result)
         })
+        app.get('/singleWorker/:id',async (req,res)=>{
+            const id= req.params.id
+            const query = {_id: new ObjectId(id)}
+            const result = await userCollection.findOne(query)
+            res.send(result);
+        })
         app.get('/bestBuyer',async (req,res)=>{
             const query ={role: 'buyer'}
             const result = await userCollection.find(query).sort({coin: -1}).limit(6).toArray()
+            res.send(result);
+        })
+        app.get('/singleBuyer/:id',async (req,res)=>{
+            const id= req.params.id
+            const query = {_id: new ObjectId(id)}
+            const result = await userCollection.findOne(query)
             res.send(result);
         })
         app.get('/admin/totalInfoCount',verifyToken,verifyAdmin, async (req, res) => {
